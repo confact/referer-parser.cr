@@ -9,7 +9,7 @@ module RefererParser
     DefaultFile = File.expand_path(File.join(File.dirname(__FILE__), "..", "..", "data", "referers.yml"))
 
     # Create a new parser from one or more filenames/uris, defaults to ../data/referers.json
-    def initialize(get_data : Bool = true)
+    def initialize(@file_path : String = DefaultFile, get_data : Bool = true)
       @domain_index = {} of String => Array(Array(String))
       @name_hash = {} of String => NamedTuple(source: String, medium: String, parameters: Array(String) | Nil)
 
@@ -27,7 +27,7 @@ module RefererParser
     def parse(obj : String | URI)
       url = obj.is_a?(URI) ? obj : URI.parse(obj)
 
-      data = {known: false, uri: url.to_s, domain: "", term: ""}
+      data = {known: false, uri: url.to_s, domain: nil, term: nil, source: nil}
 
       domain, name_key = domain_and_name_key_for(url)
 
@@ -138,7 +138,7 @@ module RefererParser
     end
 
     def deserialize_referer_data
-      parse_referer_data(deserialize_yaml(File.read(DefaultFile)))
+      parse_referer_data(deserialize_yaml(File.read(@file_path)))
       optimize_index!
     end
 

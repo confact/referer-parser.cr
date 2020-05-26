@@ -13,7 +13,7 @@ describe RefererParser::Parser do
     end
 
     it "should have a non-empty name_hash" do
-      parser = RefererParser::Parser.new(false)
+      parser = RefererParser::Parser.new(RefererParser::Parser::DefaultFile, false)
       parser.name_hash.should be_empty
       parser.domain_index.should be_empty
     end
@@ -44,19 +44,20 @@ describe RefererParser::Parser do
       parser = RefererParser::Parser.new
       parsed = parser.parse("http://it.images.search.YAHOO.COM/images/view;_ylt=A0PDodgQmGBQpn4AWQgdDQx.;_ylu=X3oDMTBlMTQ4cGxyBHNlYwNzcgRzbGsDaW1n?back=http%3A%2F%2Fit.images.search.yahoo.com%2Fsearch%2Fimages%3Fp%3DEarth%2BMagic%2BOracle%2BCards%26fr%3Dmcafee%26fr2%3Dpiv-web%26tab%3Dorganic%26ri%3D5&w=1064&h=1551&imgurl=mdm.pbzstatic.com%2Foracles%2Fearth-magic-oracle-cards%2Fcard-1.png&rurl=http%3A%2F%2Fwww.psychicbazaar.com%2Foracles%2F143-earth-magic-oracle-cards.html&size=2.8+KB&name=Earth+Magic+Oracle+Cards+-+Psychic+Bazaar&p=Earth+Magic+Oracle+Cards&oid=f0a5ad5c4211efe1c07515f56cf5a78e&fr2=piv-web&fr=mcafee&tt=Earth%2BMagic%2BOracle%2BCards%2B-%2BPsychic%2BBazaar&b=0&ni=90&no=5&ts=&tab=organic&sigr=126n355ib&sigb=13hbudmkc&sigi=11ta8f0gd&.crumb=IZBOU1c0UHU")
       parsed[:domain].should eq("images.search.yahoo.com")
+      parsed[:source].should eq("Yahoo! Images")
     end
   end
 
   describe "optimize_index" do
     it "should have out of order and duplicate domains before optimization" do
-      parser = RefererParser::Parser.new(false)
+      parser = RefererParser::Parser.new(RefererParser::Parser::DefaultFile, false)
       domains = ["fnord.com", "fnord.com", "fnord.com/path"]
       parser.add_referer("internal", "Fnord", domains)
       parser.domain_index["fnord.com"].transpose.first.should eq(["/", "/", "/path"])
     end
 
     it "should have out of order domains before optimization" do
-      parser = RefererParser::Parser.new(false)
+      parser = RefererParser::Parser.new(RefererParser::Parser::DefaultFile, false)
       domains = ["fnord.com", "fnord.com", "fnord.com/path"]
       parser.add_referer("internal", "Fnord", domains)
       parser.optimize_index!
@@ -66,7 +67,7 @@ describe RefererParser::Parser do
 
   describe "add_referer" do
     it "should add a referer to the domain_index" do
-      parser = RefererParser::Parser.new(false)
+      parser = RefererParser::Parser.new(RefererParser::Parser::DefaultFile, false)
       parser.domain_index.size.should eq(0)
       parser.add_referer("internal", "Fnord", ["fnord.com"])
       parser.domain_index.size.should eq(1)
@@ -74,7 +75,7 @@ describe RefererParser::Parser do
     end
 
     it "should add a referer with multiple domains to the domain_index" do
-      parser = RefererParser::Parser.new(false)
+      parser = RefererParser::Parser.new(RefererParser::Parser::DefaultFile, false)
       parser.domain_index.size.should eq(0)
       parser.add_referer("internal", "Fnord", ["fnord.com", "boo.com"])
       parser.domain_index.size.should eq(2)
@@ -83,7 +84,7 @@ describe RefererParser::Parser do
     end
 
     it "should add a referer to the name_hash" do
-      parser = RefererParser::Parser.new(false)
+      parser = RefererParser::Parser.new(RefererParser::Parser::DefaultFile, false)
       parser.name_hash.keys.size.should eq(0)
       parser.add_referer("internal", "Fnord", ["fnord.com"])
       parser.name_hash.keys.size.should eq(1)
