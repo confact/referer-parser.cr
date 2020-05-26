@@ -13,7 +13,7 @@ This one only support YAML for now.
    ```yaml
    dependencies:
      referer-parser:
-       github: confact/referer-parser
+       github: confact/referer-parser.cr
    ```
 
 2. Run `shards install`
