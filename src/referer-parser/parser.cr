@@ -3,7 +3,6 @@ require "yaml"
 
 module RefererParser
   class Parser
-
     getter :name_hash
     getter :domain_index
 
@@ -28,7 +27,7 @@ module RefererParser
     def parse(obj : String | URI)
       url = obj.is_a?(URI) ? obj : URI.parse(obj)
 
-      data = { known: false, uri: url.to_s, domain: "", term: ""}
+      data = {known: false, uri: url.to_s, domain: "", term: ""}
 
       domain, name_key = domain_and_name_key_for(url)
 
@@ -42,7 +41,7 @@ module RefererParser
         (referer_data[:parameters]? || [""]).each do |param|
           # If there is a matching parameter, get the first non-blank value
           unless (values = query_params.fetch_all(param)).empty?
-            term = values.reject {|v| v.strip.empty? }
+            term = values.reject { |v| v.strip.empty? }
             term = term.empty? ? nil : term.first
             break if term
           end
@@ -50,12 +49,12 @@ module RefererParser
       end
 
       return {
-        known: true,
+        known:  true,
         source: referer_data[:source],
         medium: referer_data[:medium],
-        uri: url.to_s,
-        term: term,
-        domain: domain
+        uri:    url.to_s,
+        term:   term,
+        domain: domain,
       }
     end
 
@@ -103,7 +102,7 @@ module RefererParser
       name_key = "#{name}-#{medium}"
 
       # Update the name has with the parameter and medium data
-      @name_hash[name_key] = { source: name, medium: medium, parameters: parameters }
+      @name_hash[name_key] = {source: name, medium: medium, parameters: parameters}
 
       # Update the domain to name index
       [domains].flatten.each do |domain_url|
@@ -118,7 +117,7 @@ module RefererParser
 
         domain = domain.downcase
 
-        path = (path || "" ).split("/")
+        path = (path || "").split("/")
 
         @domain_index[domain] ||= [] of Array(String)
         @domain_index[domain] << if !path.empty?
