@@ -34,22 +34,21 @@ parser = RefererParser::Parser.new
 
 And then you can start parsing the urls like this:
 
-```
-parser.parse('http://www.google.com/search?q=gateway+oracle+cards+denise+linn&hl=en&client=safari')
+```crystal
+parser.parse("http://www.google.com/search?q=gateway+oracle+cards+denise+linn&hl=en&client=safari")
   # => {
-    :known=>true,
-    :uri=>"http://www.google.com/search?q=gateway+oracle+cards+denise+linn&hl=en&client=safari",
-    :source=>"Google",
-    :medium=>"search",
+    known: true,
+    source: "Google",
+    medium: "search",
+    uri:
+    "http://www.google.com/search?q=gateway+oracle+cards+denise+linn&hl=en&client=safari",
+    term: "gateway oracle cards denise linn",
+    domain: "google.com"
   }
 ```
 
 ## What is left
-Right now this implementation don't return:
-1. parameters
-2. terms
-
-We also don't support the JSON of the data file snowplow is giving away.
+We don't support the JSON of the data file snowplow is releasing right now.
 
 ## Development
 

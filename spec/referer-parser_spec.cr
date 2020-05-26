@@ -31,13 +31,13 @@ describe RefererParser::Parser do
     it "should return the better result when the referer contains two or more parameters" do
       parser = RefererParser::Parser.new
       parsed = parser.parse("http://search.tiscali.it/?tiscalitype=web&collection=web&q=&key=hello")
-      #parsed[:term].should == "hello"
+      parsed[:term].should eq("hello")
     end
 
     it "should return the better result when the referer contains same parameters" do
       parser = RefererParser::Parser.new
       parsed = parser.parse("http://search.tiscali.it/?tiscalitype=web&collection=web&key=&key=hello")
-      #parsed[:term].should == "hello"
+      parsed[:term].should eq("hello")
     end
 
     it "should return the normalized domain" do

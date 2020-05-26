@@ -12,7 +12,7 @@ module RefererParser
     # Create a new parser from one or more filenames/uris, defaults to ../data/referers.json
     def initialize(get_data : Bool = true)
       @domain_index = {} of String => Array(Array(String))
-      @name_hash = {} of String => NamedTuple(source: String, medium: String)
+      @name_hash = {} of String => NamedTuple(source: String, medium: String, parameters: Array(String) | Nil)
 
       deserialize_referer_data if get_data
     end
@@ -20,7 +20,7 @@ module RefererParser
     # Clean out the database
     def clear!
       @domain_index = {} of String => Array(Array(String))
-      @name_hash = {} of String => NamedTuple(source: String, medium: String)
+      @name_hash = {} of String => NamedTuple(source: String, medium: String, parameters: Array(String) | Nil)
       true
     end
 
@@ -28,18 +28,33 @@ module RefererParser
     def parse(obj : String | URI)
       url = obj.is_a?(URI) ? obj : URI.parse(obj)
 
-      data = { known: false, uri: url.to_s, domain: ""}
+      data = { known: false, uri: url.to_s, domain: "", term: ""}
 
       domain, name_key = domain_and_name_key_for(url)
 
       return data unless domain && name_key
 
       referer_data = @name_hash[name_key]
+      term = nil
+      # Parse parameters if the referer uses them
+      if url.query && referer_data[:parameters]
+        query_params = url.query_params
+        (referer_data[:parameters]? || [""]).each do |param|
+          # If there is a matching parameter, get the first non-blank value
+          unless (values = query_params.fetch_all(param)).empty?
+            term = values.reject {|v| v.strip.empty? }
+            term = term.empty? ? nil : term.first
+            break if term
+          end
+        end
+      end
 
       return {
         known: true,
         source: referer_data[:source],
         medium: referer_data[:medium],
+        uri: url.to_s,
+        term: term,
         domain: domain
       }
     end
@@ -83,12 +98,12 @@ module RefererParser
 
     # Add a referer to the database with medium, name, domain or array of domains, and a parameter or array of parameters
     # If called manually and a domain is added to an existing entry with a path, you may need to call optimize_index! afterwards.
-    def add_referer(medium, name, domains, parameters = nil)
+    def add_referer(medium, name, domains, parameters = [""])
       # The same name can be used with multiple mediums so we make a key here
       name_key = "#{name}-#{medium}"
 
       # Update the name has with the parameter and medium data
-      @name_hash[name_key] = { source: name, medium: medium }
+      @name_hash[name_key] = { source: name, medium: medium, parameters: parameters }
 
       # Update the domain to name index
       [domains].flatten.each do |domain_url|
@@ -137,7 +152,7 @@ module RefererParser
     protected def parse_referer_data(data)
       data.as_h.each do |medium, name_hash|
         name_hash.as_h.each do |name, name_data|
-          add_referer(medium.as_s, name.as_s, name_data["domains"].as_a, name_data["parameters"]?.try { |p| p.as_a })
+          add_referer(medium.as_s, name.as_s, name_data["domains"].as_a, name_data["parameters"]?.try { |p| p.as_a.map { |par| par.as_s } })
         end
       end
     end
