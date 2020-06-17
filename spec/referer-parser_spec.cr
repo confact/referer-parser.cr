@@ -46,6 +46,16 @@ describe RefererParser::Parser do
       parsed[:domain].should eq("images.search.yahoo.com")
       parsed[:source].should eq("Yahoo! Images")
     end
+
+    it "reddit checks" do
+      parser = RefererParser::Parser.new
+      parsed = parser.parse("http://old.reddit.com")
+      parsed2 = parser.parse("http://reddit.com")
+      parsed[:domain].should eq("old.reddit.com")
+      parsed[:source].should eq("Reddit")
+      parsed2[:domain].should eq("reddit.com")
+      parsed2[:source].should eq("Reddit")
+    end
   end
 
   describe "optimize_index" do

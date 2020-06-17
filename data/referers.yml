@@ -184,7 +184,7 @@ email:
 
   Rambler:
     domains:
-      - mail.rambler.ru 
+      - mail.rambler.ru
 
   Seznam Mail:
     domains:
@@ -504,6 +504,7 @@ social:
   Reddit:
     domains:
       - reddit.com
+      - old.reddit.com
 
   Hacker News:
     domains:

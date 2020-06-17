@@ -86,9 +86,14 @@ module RefererParser
 
     protected def get_domain(uri, domain : String)
       domain2 = domain.downcase
+      uri_path = if uri.path.empty?
+        "/"
+      else
+        uri.path
+      end
       if paths = @domain_index[domain2]
         paths.each do |path|
-          return [domain2, path[1]] if uri.path.includes?(path.first)
+          return [domain2, path[1]] if uri_path.includes?(path.first)
         end
       end
     rescue KeyError
