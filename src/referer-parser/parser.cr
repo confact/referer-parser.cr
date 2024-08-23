@@ -8,7 +8,7 @@ module RefererParser
 
     DefaultFile = File.expand_path(File.join(File.dirname(__FILE__), "..", "..", "data", "referers.yml"))
 
-    # Create a new parser from one or more filenames/uris, defaults to ../data/referers.json
+    # Create a new parser from one or more filenames/uris, defaults to ../../data/referers.yml
     def initialize(@file_path : String = DefaultFile, get_data : Bool = true)
       @domain_index = {} of String => Array(Array(String))
       @name_hash = {} of String => NamedTuple(source: String, medium: String, parameters: Array(String) | Nil)
@@ -23,81 +23,31 @@ module RefererParser
       true
     end
 
-    # Given a string or URI, return a hash of data
     def parse(obj : String | URI)
       url = obj.is_a?(URI) ? obj : URI.parse(obj)
 
-      data = {known: false, uri: url.to_s, domain: nil, term: nil, source: nil}
+      data = {
+        known:  false,
+        uri:    url.to_s,
+        domain: nil,
+        term:   nil,
+        source: nil,
+      }
 
       domain, name_key = domain_and_name_key_for(url)
-
       return data unless domain && name_key
 
       referer_data = @name_hash[name_key]
-      term = nil
-      # Parse parameters if the referer uses them
-      if url.query && referer_data[:parameters]
-        query_params = url.query_params
-        (referer_data[:parameters]? || [""]).each do |param|
-          # If there is a matching parameter, get the first non-blank value
-          unless (values = query_params.fetch_all(param)).empty?
-            term = values.reject { |v| v.strip.empty? }
-            term = term.empty? ? nil : term.first
-            break if term
-          end
-        end
-      end
+      term = extract_term(url, referer_data[:parameters])
 
-      return {
+      {
         known:  true,
         source: referer_data[:source],
         medium: referer_data[:medium],
         uri:    url.to_s,
-        term:   term,
         domain: domain,
+        term:   term,
       }
-    end
-
-    protected def domain_and_name_key_for(uri)
-      # Create a proc that will return immediately
-      if !uri.host.nil?
-        if uri.host =~ /\Awww\.(.+)\z/i
-          match = /\Awww\.(.+)\z/i.match(uri.host.not_nil!)
-          returned = get_domain(uri, match[1]) unless match.nil?
-          return returned unless returned.nil?
-        else
-          returned = get_domain(uri, uri.host.not_nil!)
-          return returned unless returned.nil?
-        end
-      end
-
-      # Remove subdomains until only three are left (probably good enough)
-      if !uri.host.nil?
-        host_arr = uri.host.not_nil!.split(".")
-        while host_arr.size > 2
-          host_arr.shift
-          returned = get_domain(uri, host_arr.join("."))
-          return returned unless returned.nil?
-        end
-      end
-
-      [nil, nil]
-    end
-
-    protected def get_domain(uri, domain : String)
-      domain2 = domain.downcase
-      uri_path = if uri.path.empty?
-        "/"
-      else
-        uri.path
-      end
-      if paths = @domain_index[domain2]
-        paths.each do |path|
-          return [domain2, path[1]] if uri_path.includes?(path.first)
-        end
-      end
-    rescue KeyError
-      nil
     end
 
     # Add a referer to the database with medium, name, domain or array of domains, and a parameter or array of parameters
@@ -110,35 +60,27 @@ module RefererParser
       @name_hash[name_key] = {source: name, medium: medium, parameters: parameters}
 
       # Update the domain to name index
-      [domains].flatten.each do |domain_url|
+      domains.each do |domain_url|
         if domain_url.is_a?(YAML::Any)
           domain_url = domain_url.as_s
         end
-        domains = domain_url.split("/", 2)
-        domain = domains.first
-        path = domains[1]?
-        match = /\Awww\.(.*)\z/i.match(domain)
-        domain = match[1] if !match.nil?
 
-        domain = domain.downcase
-
-        path = (path || "").split("/")
+        # Use URI to parse the domain and path
+        uri = URI.parse("http://#{domain_url}")
+        domain = uri.host.not_nil!.downcase.sub(/\Awww\./, "")
+        path = uri.path.empty? ? "/" : uri.path
 
         @domain_index[domain] ||= [] of Array(String)
-        @domain_index[domain] << if !path.empty?
-          ["/" + path.join("/"), name_key]
-        else
-          ["/", name_key]
-        end
+        @domain_index[domain] << [path, name_key]
       end
     end
 
     # Prune duplicate entries and sort with the most specific path first if there is more than one entry
     # In this case, sorting by the longest string works fine
     def optimize_index!
-      @domain_index.each do |key, _val|
-        # Sort each path/name_key pair by the longest path
-        @domain_index[key].sort! { |a, b| b[0].size <=> a[0].size }.uniq!
+      @domain_index.each_key do |key|
+        # Remove duplicates and sort by longest path first
+        @domain_index[key].uniq!.sort! { |a, b| b[0].size <=> a[0].size }
       end
     end
 
@@ -159,6 +101,52 @@ module RefererParser
           add_referer(medium.as_s, name.as_s, name_data["domains"].as_a, name_data["parameters"]?.try { |p| p.as_a.map { |par| par.as_s } })
         end
       end
+    end
+
+    protected def extract_term(url : URI, parameters : Array(String)?)
+      return nil unless parameters && url.query
+
+      query_params = url.query_params
+      parameters.each do |param|
+        term = query_params.fetch_all(param).find { |v| !v.strip.empty? }
+        return term if term
+      end
+
+      nil
+    end
+
+    protected def domain_and_name_key_for(uri)
+      host = uri.host.not_nil!.downcase
+
+      # Try direct match with or without 'www.'
+      simplified_host = host.sub(/\Awww\./, "")
+      [host, simplified_host].each do |domain|
+        result = get_domain(uri, domain)
+        return result if result
+      end
+
+      # Remove subdomains until only two parts remain
+      host_parts = simplified_host.split(".")
+      while host_parts.size > 2
+        host_parts.shift
+        result = get_domain(uri, host_parts.join("."))
+        return result if result
+      end
+
+      [nil, nil]
+    end
+
+    protected def get_domain(uri, domain : String)
+      domain_downcase = domain.downcase
+      uri_path = uri.path.empty? ? "/" : uri.path
+
+      if paths = @domain_index[domain_downcase]?
+        paths.each do |path|
+          return [domain_downcase, path[1]] if uri_path.includes?(path.first)
+        end
+      end
+
+      nil
     end
   end
 end
